@@ -14,3 +14,77 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+.upload-component {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  max-height: 300px;
+  overflow: auto;
+  margin-top: 2rem;
+  padding: 1rem 1rem 1rem 0.5rem;
+  border: 1px solid;
+}
+
+.card {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem;
+  gap: 1rem;
+  border: 1px solid #eee;
+  border-radius: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-title {
+  font-size: 14px;
+}
+
+.card-id {
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25em 0.4em;
+  font-size: 75%;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+  background-color: orange;
+  color: white;
+}
+
+.file-section {
+  width: 100%;
+}
+
+.file-section .file-title {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-section .file-title h3 {
+  width: 80%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chunk-section {
+  margin-top: 1rem;
+}

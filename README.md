@@ -24,18 +24,35 @@ upload strategy
 - Batch Processing: Upload files in batches to manage server load and reduce the risk of timeouts.
 - Chunked Uploads: Divide large files into smaller chunks for upload to improve reliability and manage network interruptions.
 
-LIMIT:
-10 mb
-REQUEST_LIMIT
-6 connections
+- LIMIT:
+  5 mb
 
-Size:
-small 0 - 10 mb
-large > 10 mb
+- REQUEST_LIMIT
+  6 connections
 
-Scenarios: - 1 small file direct upload
+- Size:
+  small 0 - 5 mb
+  large > 5 mb
 
-    - number > 1 file, each of them has a small size.
-        - total size < 10 mb => send them all in one request
-        - total size > 10 mb sent them in separated requests or ( send each collection of files in one request if the size is < 10 mb )
-            - number of requests should not exceed the REQUEST_LIMIT
+- Scenarios: - 1 small file direct upload
+
+  - number > 1 file, each of them has a small size.
+    - total size < 5 mb => send them all in one request
+    - total size > 5 mb sent them in separated requests or ( send each collection of files in one request if the size is < 5 mb )
+      - number of requests should not exceed the REQUEST_LIMIT
+
+- USER ACTIONS :
+
+  1. pause / stop
+     resume
+     remove (stored files or chunks)
+     retry
+     cancel and remove
+     upload
+
+- Status:
+  pending (still in the store)
+  success (uploaded)
+  error (any kind of error that might happen)
+  progress (currently uploading)
+  paused (stopped by the user)
