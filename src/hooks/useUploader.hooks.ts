@@ -1,15 +1,38 @@
 import { ChangeEvent, useState } from "react";
+import { Chunk } from "../model/chunk.model";
+import { v4 as uuidv4 } from "uuid";
+import { chunkFile } from "../utils/file.util";
+import { useCreateChunks } from "../queries/chunk.query";
+import { useCreateFile } from "../queries/uploadFile.query";
+
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
+const MAX_REQUEST_CONNECTIONS = 6;
 
 export default function useUploader() {
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[] | null>(null);
+
+  const { createChunk } = useCreateChunks();
+  const { createFile } = useCreateFile();
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files);
+    const { files } = e.target;
+
+    if (!files) {
+      // TODO: trigger a notification error
+      return;
+    }
+
+    const file_list: File[] = [];
+
+    for (const file of files) file_list.push(file);
+
+    setFiles(file_list);
   };
 
   // Function to finalize the upload and start file reassembly
   async function onFinalizeUpload(fileName: string, totalChunks: number) {
     const data = { fileName, totalChunks };
+
     const response = await fetch("http://localhost:3000/finalize", {
       method: "POST",
       headers: {
@@ -23,16 +46,6 @@ export default function useUploader() {
     } else {
       console.error("Failed to finalize the upload:", await response.text());
     }
-  }
-
-  // Helper function to split file into chunks
-  function sliceFile(file: File, chunkSize: number) {
-    let chunks = [];
-    for (let start = 0; start < file.size; start += chunkSize) {
-      const end = Math.min(start + chunkSize, file.size);
-      chunks.push(file.slice(start, end));
-    }
-    return chunks;
   }
 
   // Function to upload a single chunk
@@ -58,9 +71,34 @@ export default function useUploader() {
   }
 
   // Main function to handle the file upload
-  async function uploadFile(file: File) {
-    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
-    const chunks: Blob[] = sliceFile(file, CHUNK_SIZE);
+  async function onUpload(file: File) {
+    const chunks: Blob[] = chunkFile(file, MAX_CHUNK_SIZE);
+
+    const file_id = uuidv4();
+
+    const db_chunks = chunks.map((_, index) => {
+      const id = uuidv4();
+
+      return {
+        id,
+        file_id,
+        file_name: file.name,
+        chunk_index: index,
+        status: "pending",
+        number_of_retry: 0,
+      } as Chunk;
+    });
+
+    createFile([
+      {
+        id: file_id,
+        content: file,
+        number_of_chunks: chunks.length,
+        status: "pending",
+      },
+    ]);
+
+    createChunk(db_chunks);
 
     for (let index = 0; index < chunks.length; index++) {
       try {
@@ -98,11 +136,11 @@ export default function useUploader() {
 
     const largeFile = files[0];
 
-    uploadFile(largeFile);
+    onUpload(largeFile);
   }
 
   return {
-    uploadFile,
+    onUpload,
     uploadChunk,
     onFinalizeUpload,
     onChange,
