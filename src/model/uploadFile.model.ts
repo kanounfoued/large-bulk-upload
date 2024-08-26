@@ -5,9 +5,11 @@ export type UploadFileStatus =
   | "progress"
   | "paused";
 
-export interface UploadFile {
+export type UploadFile = {
   id: string;
   content: File;
   number_of_chunks: number;
   status: UploadFileStatus;
-}
+  timestamp: number;
+  type: string;
+};

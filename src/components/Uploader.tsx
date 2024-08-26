@@ -3,16 +3,20 @@ import { useGetFiles } from "../queries/uploadFile.query";
 import FileTab from "./FileTab";
 
 export default function Uploader() {
-  const { onChange, onSubmit } = useUploader();
+  const { onChange, onUpload, isProcessing } = useUploader({
+    type: "dataset",
+  });
 
-  const files = useGetFiles();
+  const files = useGetFiles({ type: "dataset" });
 
   return (
     <div>
       <div className="upload-component">
         <input type="file" onChange={onChange} multiple />
-        <button onClick={onSubmit}>upload</button>
+        <button onClick={onUpload}>upload</button>
       </div>
+
+      {isProcessing ? <h3>Processing ....</h3> : null}
 
       {files?.length === 0 ? (
         <div>No file or chunk found to upload </div>
