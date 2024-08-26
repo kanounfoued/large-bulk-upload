@@ -1,56 +1,96 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../config/dexie.config";
 import { Chunk, ChunkStatus } from "../model/chunk.model";
+import { useQueueRequest } from "./request.query";
 
 export const useGetChunks = () => {
-  return useLiveQuery(() => db.chunks.toArray());
+  return useLiveQuery(() => db.chunks.orderBy("chunk_index").toArray());
 };
 
 export const useGetChunkById = (chunkId: string) => {
-  useLiveQuery(async () => {
-    return await db.chunks.where("id").equals(chunkId).toArray();
+  return useLiveQuery(() => {
+    return db.chunks.where("id").equals(chunkId).toArray();
   }, [chunkId]);
 };
 
 export const useGetChunksByFileName = (fileName: string) => {
-  useLiveQuery(async () => {
-    return await db.chunks.where("file_name").equals(fileName).toArray();
+  return useLiveQuery(() => {
+    return db.chunks.where("file_name").equals(fileName).sortBy("chunk_index");
   }, [fileName]);
 };
 
 export const useGetChunksByFileId = (fileId: string) => {
-  return useLiveQuery(async () => {
-    return await db.chunks.where("file_id").equals(fileId).toArray();
+  return useLiveQuery(() => {
+    return db.chunks.where("file_id").equals(fileId).sortBy("chunk_index");
   }, [fileId]);
 };
 
 export const useGetChunksByStatus = (status: ChunkStatus) => {
-  useLiveQuery(async () => {
-    return await db.chunks.where("status").equals(status).toArray();
+  return useLiveQuery(() => {
+    return db.chunks.where("status").equals(status).sortBy("chunk_index");
   }, [status]);
 };
 
 export const useCreateChunks = () => {
-  function createChunk(chunks: Chunk[]) {
+  const { queue } = useQueueRequest();
+
+  async function createChunks(chunks: Chunk[]) {
     const keys = chunks.map((chunk) => chunk.id);
-    return db.chunks.bulkAdd(chunks, keys, { allKeys: true });
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      await queue([
+        {
+          ...chunk,
+          status: "progress",
+        },
+      ]);
+    }
+
+    return await db.chunks.bulkAdd(chunks, keys, { allKeys: true });
   }
 
-  return { createChunk };
+  return { createChunks };
 };
 
 export const useUpdateChunkById = () => {
-  function updateChunk(id: string, chunk: Chunk) {
-    return db.chunks.put(chunk, id);
+  async function updateChunk(id: string, chunk: Chunk) {
+    return await db.chunks.put(chunk, id);
   }
 
   return { updateChunk };
 };
 
+export const useUpdateChunks = () => {
+  async function updateChunks(chunks: Chunk[]) {
+    const keys = chunks.map((chunk) => chunk.id);
+
+    return await db.chunks.bulkPut(chunks, keys, { allKeys: true });
+  }
+
+  return { updateChunks };
+};
+
 export const useDeleteById = () => {
-  function removeChunk(id: string) {
-    return db.chunks.delete(id);
+  async function removeChunk(id: string) {
+    return await db.chunks.delete(id);
   }
 
   return { removeChunk };
+};
+
+export const useDeleteByFileId = () => {
+  async function removeChunks(fileId: string) {
+    return await db.chunks.where("file_id").equals(fileId).delete();
+  }
+
+  return { removeChunks };
+};
+
+export async function getChunks(type: string) {
+  return await db.chunks.where("type").equals(type).sortBy("timestamp");
+}
+
+export const getChunksByFileId = (fileId: string) => {
+  return db.chunks.where("file_id").equals(fileId).sortBy("chunk_index");
 };
