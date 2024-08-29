@@ -3,8 +3,7 @@ import axios from "axios";
 export async function uploadChunk(
   fileName: string,
   chunk: Blob,
-  index: number,
-  onUploadEnd?: () => Promise<void>
+  index: number
 ) {
   const formData = new FormData();
   formData.append("fileChunk", chunk);
@@ -19,8 +18,6 @@ export async function uploadChunk(
       method: "POST",
       data: formData,
     });
-
-    await onUploadEnd?.();
 
     return response.data;
   } catch (error) {

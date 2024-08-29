@@ -10,7 +10,7 @@ const db = new Dexie("upload_db") as Dexie & {
 // Schema declaration:
 db.version(1).stores({
   files:
-    "file_id, content, status, number_of_chunks, type, timestamp, [file_id]",
+    "file_id, file_name, content, status, number_of_chunks, type, timestamp, [file_id]",
   chunks:
     "chunk_id, file_name, chunk_index, file_id, status, number_of_retry, timestamp, type, [chunk_id], [type]",
 });
