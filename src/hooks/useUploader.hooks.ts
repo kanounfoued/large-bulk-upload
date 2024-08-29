@@ -1,19 +1,11 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { chunkFile } from "../utils/file.util";
-import {
-  useCreateChunks,
-  useDeleteByFileId,
-  useUpdateChunkById,
-} from "../queries/chunk.query";
-import {
-  useCreateFile,
-  useDeleteById,
-  useUpdateFileById,
-} from "../queries/uploadFile.query";
-import { finalizeUpload, uploadChunk } from "../api/upload.api";
+import { useCreateFile, useGetFiles } from "../queries/uploadFile.query";
+import { uploadChunk } from "../api/upload.api";
 import useUploadRequestQueue from "./uploadRequestQueue.hook";
 import { Chunk } from "../model/chunk.model";
+import { getChunks } from "../queries/chunk.query";
 
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
 
@@ -23,16 +15,42 @@ type Props = {
 
 export default function useUploader({ type }: Props) {
   const [files, setFiles] = useState<File[] | null>(null);
+  const indexed_files = useGetFiles({ type });
+
   const [isProcessing, setProcessing] = useState<boolean>(false);
 
-  const { dequeue, enqueue } = useUploadRequestQueue();
+  const [autoUploadOnLoad, setAutoUploadOnLoad] = useState<boolean>(false);
 
-  const { createChunk } = useCreateChunks();
+  const [autoUploadOnChange, setAutoUploadOnChange] = useState<boolean>(false);
+
+  const [resumeDownloads, setResumeDownloads] = useState<boolean>(false);
+
+  useEffect(() => {
+    (async function () {
+      const chunks = await getChunks("dataset");
+      if (chunks.length > 0) setResumeDownloads(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (indexed_files?.length === 0) {
+      reset();
+    }
+  }, [indexed_files]);
+
+  const reset = () => {
+    setResumeDownloads(false);
+    setFiles(null);
+  };
+
+  const { dequeue, enqueue } = useUploadRequestQueue({
+    isProcessing,
+    autoUploadOnLoad,
+    autoUploadOnChange,
+    onUploadEnd: reset,
+  });
+
   const { createFile } = useCreateFile();
-  const { removeChunks } = useDeleteByFileId();
-  const { removeFile } = useDeleteById();
-  const { updateFile } = useUpdateFileById();
-  const { updateChunk } = useUpdateChunkById();
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
@@ -45,9 +63,18 @@ export default function useUploader({ type }: Props) {
     const file_list: File[] = [];
 
     for (const file of files) file_list.push(file);
-
+    e.target.files = null;
+    e.target.value = "";
     setFiles(file_list);
     onUploadStart(file_list);
+  };
+
+  const onChangeAutoUploadOnLoad = () => {
+    setAutoUploadOnLoad((prev) => !prev);
+  };
+
+  const onChangeAutoUploadOnChange = () => {
+    setAutoUploadOnChange((prev) => !prev);
   };
 
   async function onUploadStartHandleFile(file: File) {
@@ -202,6 +229,15 @@ export default function useUploader({ type }: Props) {
     uploadChunk,
     onChange,
     files,
+    indexed_files,
     isProcessing,
+    resumeDownloads,
+    onResumeDoawnloads: onUpload,
+
+    autoUploadOnLoad,
+    onChangeAutoUploadOnLoad,
+    autoUploadOnChange,
+    onChangeAutoUploadOnChange,
+    reset,
   };
 }
