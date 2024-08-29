@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../config/dexie.config";
-import { UploadFile, UploadFileStatus } from "../model/uploadFile.model";
+import { UploadFile } from "../model/uploadFile.model";
 
 export const useGetFiles = ({ type }: { type: string }) => {
   return useLiveQuery(() =>
@@ -10,20 +10,13 @@ export const useGetFiles = ({ type }: { type: string }) => {
 
 export const useGetFileById = (fileId: string) => {
   return useLiveQuery(() => {
-    return db.files.where("id").equals(fileId).toArray();
+    return db.files.where("file_id").equals(fileId).first();
   }, [fileId]);
 };
 
-export const useGetFilesByStatus = (type: string, status: UploadFileStatus) => {
-  return useLiveQuery(() => {
-    return db.files.where(["type", "status"]).equals([type, status]).toArray();
-  }, [status]);
-};
-
 export const useCreateFile = () => {
-  async function createFile(files: UploadFile[]) {
-    const keys = files.map((file) => file.id);
-    return await db.files.bulkAdd(files, keys, { allKeys: true });
+  async function createFile(file: UploadFile) {
+    return await db.files.add(file, file.file_id);
   }
 
   return { createFile };
@@ -50,6 +43,5 @@ export async function getFiles(type: string) {
 }
 
 export async function getFileById(id: string) {
-  //   return db.files.get({ id });
-  return await db.files.filter((obj) => obj.id === id).first();
+  return await db.files.where("file_id").equals(id).first();
 }
