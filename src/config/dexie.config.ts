@@ -3,18 +3,16 @@ import { Chunk } from "../model/chunk.model";
 import { UploadFile } from "../model/uploadFile.model";
 
 const db = new Dexie("upload_db") as Dexie & {
-  files: EntityTable<UploadFile, "id">;
-  chunks: EntityTable<Chunk, "id">;
-  requests: EntityTable<Chunk, "id">;
+  files: EntityTable<UploadFile, "file_id">;
+  chunks: EntityTable<Chunk, "chunk_id">;
 };
 
 // Schema declaration:
 db.version(1).stores({
-  files: ", content, status, number_of_chunks, type, timestamp",
+  files:
+    "file_id, content, status, number_of_chunks, type, timestamp, [file_id]",
   chunks:
-    ", file_name, chunk_index, file_id, status, number_of_retry, timestamp",
-  requests:
-    ", file_name, chunk_index, file_id, status, number_of_retry, timestamp",
+    "chunk_id, file_name, chunk_index, file_id, status, number_of_retry, timestamp, type, [chunk_id], [type]",
 });
 
 export { db };

@@ -13,7 +13,14 @@ export default function Uploader() {
     <div>
       <div className="upload-component">
         <input type="file" onChange={onChange} multiple />
-        <button onClick={onUpload}>upload</button>
+        <button
+          onClick={() => {
+            // console.log("time", performance.now());
+            onUpload();
+          }}
+        >
+          upload
+        </button>
       </div>
 
       {isProcessing ? <h3>Processing ....</h3> : null}
@@ -23,7 +30,7 @@ export default function Uploader() {
       ) : (
         <div className="files-list">
           {files?.map((file) => (
-            <FileTab key={file.id} file={file} />
+            <FileTab key={file.file_id} file={file} />
           ))}
         </div>
       )}

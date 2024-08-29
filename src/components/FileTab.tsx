@@ -14,7 +14,7 @@ export default function FileTab({ file }: Props) {
   const [open, setOpen] = useState(false);
   const progress = 70;
 
-  const chunks = useGetChunksByFileId(file.id);
+  const chunks = useGetChunksByFileId(file.file_id);
 
   const { removeFile } = useDeleteById();
   const { removeChunks } = useDeleteByFileId();
@@ -24,12 +24,12 @@ export default function FileTab({ file }: Props) {
   };
 
   const onRemove = () => {
-    removeFile(file.id);
-    removeChunks(file.id);
+    removeFile(file.file_id);
+    removeChunks(file.file_id);
   };
 
   return (
-    <div key={file.id} className="file-section">
+    <div key={file.file_id} className="file-section">
       <div>
         <div className="file-title">
           <h3>{file.content.name}</h3>
@@ -44,7 +44,7 @@ export default function FileTab({ file }: Props) {
       {open ? (
         <div className="chunk-section">
           {chunks?.map((chunk) => (
-            <div key={chunk.id}>
+            <div key={chunk.chunk_id}>
               <div className="card">
                 <div>
                   <div className="card-title">{chunk.file_name}</div>
