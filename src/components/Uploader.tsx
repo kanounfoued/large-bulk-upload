@@ -7,36 +7,33 @@ export default function Uploader() {
     onChange,
     onUpload,
     isProcessing,
-    resumeDownloads,
-    onChangeAutoUploadOnLoad,
-    onResumeDoawnloads,
+    isResumable,
+    isUploading,
+    onChangeAutoUploadAfterPageLoading,
+    onResumeUploads,
   } = useUploader({
     type: "dataset",
   });
 
   return (
     <div>
-      <button onClick={() => onChangeAutoUploadOnLoad()}>
+      <button onClick={onChangeAutoUploadAfterPageLoading}>
         auto save onLoad
       </button>
-      {resumeDownloads ? (
-        <button onClick={onResumeDoawnloads}>resume downloads</button>
+      {isResumable ? (
+        <button onClick={onResumeUploads}>resume downloads</button>
       ) : null}
 
       <div className="upload-component">
         <input type="file" onChange={onChange} multiple />
-        <button
-          onClick={() => {
-            onUpload();
-          }}
-        >
+        <button disabled={isUploading} onClick={onUpload}>
           upload
         </button>
       </div>
 
       {isProcessing ? <h3>Processing ....</h3> : null}
 
-      {indexed_files?.length === 0 ? (
+      {isProcessing || indexed_files?.length === 0 ? (
         <div>No file or chunk found to upload </div>
       ) : (
         <div className="files-list">

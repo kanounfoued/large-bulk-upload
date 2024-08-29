@@ -2,36 +2,34 @@ import { useEffect, useRef } from "react";
 import {
   getChunks,
   getChunksByFileId,
-  useCreateChunks,
-  useDeleteById as useDeleteChunkById,
+  useCreateChunk,
+  useDeleteChunk,
 } from "../queries/chunk.query";
-import {
-  getFileById,
-  useDeleteById as useDeleteFileById,
-} from "../queries/uploadFile.query";
+import { getFile, useDeleteFile } from "../queries/uploadFile.query";
 import { finalizeUpload, uploadChunk } from "../api/upload.api";
 import { Chunk } from "../model/chunk.model";
 
 export const MAX_REQUEST_CONNECTIONS = 6;
 
 type Props = {
+  type: string;
   isProcessing: boolean;
-  autoUploadOnLoad: boolean;
-  autoUploadOnChange: boolean;
+  autoUploadOnPageLoading: boolean;
+  autoUploadOnFileLoading: boolean;
   onUploadEnd: () => void;
 };
 
 export default function useUploadRequestQueue({
+  type,
   isProcessing,
-  autoUploadOnLoad,
+  autoUploadOnPageLoading,
   onUploadEnd,
-}: // autoUploadOnChange,
-Props) {
+}: Props) {
   const active_requests = useRef(0);
 
-  const { removeChunk } = useDeleteChunkById();
-  const { removeFile } = useDeleteFileById();
-  const { createChunk } = useCreateChunks();
+  const { deleteChunk } = useDeleteChunk();
+  const { deleteFile } = useDeleteFile();
+  const { createChunk } = useCreateChunk();
 
   const enqueue = async (chunk: Chunk) => {
     await createChunk(chunk);
@@ -39,7 +37,7 @@ Props) {
     // auto upload whenever the user load the docs.
     // in case of auto upload, but need to be configured by the user.
     // the response can be stored in the storage.
-    // autoUploadOnChange = true | false
+    // autoUploadOnFileLoading = true | false
   };
 
   useEffect(() => {
@@ -48,14 +46,14 @@ Props) {
     // auto upload whenever the user load the page.
     // in case of auto upload, but need to be configured by the user.
     // the response can be stored in the storage.
-    // autoUploadOnLoad = true | false
-    if (autoUploadOnLoad) {
+    // autoUploadOnPageLoading = true | false
+    if (autoUploadOnPageLoading) {
       dequeue();
     }
-  }, [isProcessing, autoUploadOnLoad]);
+  }, [isProcessing, autoUploadOnPageLoading]);
 
   const dequeue = async () => {
-    const chunks = await getChunks("dataset");
+    const chunks = await getChunks(type);
 
     if (!chunks || chunks.length === 0) {
       onUploadEnd();
@@ -70,21 +68,21 @@ Props) {
 
       uploadChunk(file_name, content, chunk_index)
         .then(async () => {
-          await removeChunk(chunk_id);
-          const file = await getFileById(file_id);
+          await deleteChunk(chunk_id);
+          const file = await getFile(file_id);
 
           const chunks = await getChunksByFileId(file_id);
 
           if (chunks.length === 0) {
             await finalizeUpload(file_name, file?.number_of_chunks ?? 1);
-            await removeFile(file_id);
+            await deleteFile(file_id);
           }
         })
         .catch(async (error) => {
           // TODO: handle this better.
           console.log("error", error);
-          await removeChunk(chunk_id);
-          await removeFile(file_id);
+          await deleteChunk(chunk_id);
+          await deleteFile(file_id);
         })
         .finally(() => {
           active_requests.current -= 1;

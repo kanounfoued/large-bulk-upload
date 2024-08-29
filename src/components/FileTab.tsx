@@ -4,7 +4,7 @@ import {
   useDeleteByFileId,
   useGetChunksByFileId,
 } from "../queries/chunk.query";
-import { useDeleteById } from "../queries/uploadFile.query";
+import { useDeleteFile } from "../queries/uploadFile.query";
 
 type Props = {
   file: UploadFile;
@@ -16,16 +16,16 @@ export default function FileTab({ file }: Props) {
 
   const chunks = useGetChunksByFileId(file.file_id);
 
-  const { removeFile } = useDeleteById();
-  const { removeChunks } = useDeleteByFileId();
+  const { deleteFile } = useDeleteFile();
+  const { deleteChunks } = useDeleteByFileId();
 
   const onToggle = () => {
     setOpen((prev) => !prev);
   };
 
   const onRemove = () => {
-    removeFile(file.file_id);
-    removeChunks(file.file_id);
+    deleteFile(file.file_id);
+    deleteChunks(file.file_id);
   };
 
   return (

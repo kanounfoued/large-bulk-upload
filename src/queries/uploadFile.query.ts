@@ -22,7 +22,7 @@ export const useCreateFile = () => {
   return { createFile };
 };
 
-export const useUpdateFileById = () => {
+export const useUpdateFile = () => {
   async function updateFile(id: string, file: UploadFile) {
     return await db.files.put(file, id);
   }
@@ -30,18 +30,18 @@ export const useUpdateFileById = () => {
   return { updateFile };
 };
 
-export const useDeleteById = () => {
-  async function removeFile(id: string) {
+export const useDeleteFile = () => {
+  async function deleteFile(id: string) {
     return await db.files.delete(id);
   }
 
-  return { removeFile };
+  return { deleteFile };
 };
 
 export async function getFiles(type: string) {
   return await db.files.where("type").equals(type).sortBy("timestamp");
 }
 
-export async function getFileById(id: string) {
+export async function getFile(id: string) {
   return await db.files.where("file_id").equals(id).first();
 }

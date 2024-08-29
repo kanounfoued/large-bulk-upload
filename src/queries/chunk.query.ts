@@ -1,21 +1,15 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../config/dexie.config";
-import { Chunk, ChunkStatus } from "../model/chunk.model";
+import { Chunk } from "../model/chunk.model";
 
 export const useGetChunks = () => {
   return useLiveQuery(() => db.chunks.orderBy("chunk_index").toArray());
 };
 
-export const useGetChunkById = (chunkId: string) => {
+export const useGetChunk = (chunkId: string) => {
   return useLiveQuery(() => {
     return db.chunks.where("chunk_id").equals(chunkId).toArray();
   }, [chunkId]);
-};
-
-export const useGetChunksByFileName = (fileName: string) => {
-  return useLiveQuery(() => {
-    return db.chunks.where("file_name").equals(fileName).sortBy("chunk_index");
-  }, [fileName]);
 };
 
 export const useGetChunksByFileId = (fileId: string) => {
@@ -24,13 +18,7 @@ export const useGetChunksByFileId = (fileId: string) => {
   }, [fileId]);
 };
 
-export const useGetChunksByStatus = (status: ChunkStatus) => {
-  return useLiveQuery(() => {
-    return db.chunks.where("status").equals(status).sortBy("chunk_index");
-  }, [status]);
-};
-
-export const useCreateChunks = () => {
+export const useCreateChunk = () => {
   async function createChunk(chunk: Chunk) {
     const key = await db.chunks.add(chunk, chunk.chunk_id);
     return key;
@@ -39,7 +27,7 @@ export const useCreateChunks = () => {
   return { createChunk };
 };
 
-export const useUpdateChunkById = () => {
+export const useUpdateChunk = () => {
   async function updateChunk(id: string, chunk: Chunk) {
     return await db.chunks.put(chunk, id);
   }
@@ -47,30 +35,20 @@ export const useUpdateChunkById = () => {
   return { updateChunk };
 };
 
-export const useUpdateChunks = () => {
-  async function updateChunks(chunks: Chunk[]) {
-    const keys = chunks.map((chunk) => chunk.chunk_id);
-
-    return await db.chunks.bulkPut(chunks, keys, { allKeys: true });
-  }
-
-  return { updateChunks };
-};
-
-export const useDeleteById = () => {
-  async function removeChunk(id: string) {
+export const useDeleteChunk = () => {
+  async function deleteChunk(id: string) {
     return await db.chunks.delete(id);
   }
 
-  return { removeChunk };
+  return { deleteChunk };
 };
 
 export const useDeleteByFileId = () => {
-  async function removeChunks(fileId: string) {
+  async function deleteChunks(fileId: string) {
     return await db.chunks.where("file_id").equals(fileId).delete();
   }
 
-  return { removeChunks };
+  return { deleteChunks };
 };
 
 export async function getChunks(type: string) {

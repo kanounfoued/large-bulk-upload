@@ -7,6 +7,7 @@ export type UploadFileStatus =
 
 export type UploadFile = {
   file_id: string;
+  file_name: string;
   content: File;
   number_of_chunks: number;
   status: UploadFileStatus;
