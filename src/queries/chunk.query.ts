@@ -1,7 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../config/dexie.config";
 import { Chunk, ChunkStatus } from "../model/chunk.model";
-import { useQueueRequest } from "./request.query";
 
 export const useGetChunks = () => {
   return useLiveQuery(() => db.chunks.orderBy("chunk_index").toArray());
@@ -9,7 +8,7 @@ export const useGetChunks = () => {
 
 export const useGetChunkById = (chunkId: string) => {
   return useLiveQuery(() => {
-    return db.chunks.where("id").equals(chunkId).toArray();
+    return db.chunks.where("chunk_id").equals(chunkId).toArray();
   }, [chunkId]);
 };
 
@@ -32,25 +31,12 @@ export const useGetChunksByStatus = (status: ChunkStatus) => {
 };
 
 export const useCreateChunks = () => {
-  const { queue } = useQueueRequest();
-
-  async function createChunks(chunks: Chunk[]) {
-    const keys = chunks.map((chunk) => chunk.id);
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      await queue([
-        {
-          ...chunk,
-          status: "progress",
-        },
-      ]);
-    }
-
-    return await db.chunks.bulkAdd(chunks, keys, { allKeys: true });
+  async function createChunk(chunk: Chunk) {
+    const key = await db.chunks.add(chunk, chunk.chunk_id);
+    return key;
   }
 
-  return { createChunks };
+  return { createChunk };
 };
 
 export const useUpdateChunkById = () => {
@@ -63,7 +49,7 @@ export const useUpdateChunkById = () => {
 
 export const useUpdateChunks = () => {
   async function updateChunks(chunks: Chunk[]) {
-    const keys = chunks.map((chunk) => chunk.id);
+    const keys = chunks.map((chunk) => chunk.chunk_id);
 
     return await db.chunks.bulkPut(chunks, keys, { allKeys: true });
   }
