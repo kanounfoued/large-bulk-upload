@@ -88,3 +88,9 @@ body {
 .chunk-section {
   margin-top: 1rem;
 }
+
+.button-section {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}

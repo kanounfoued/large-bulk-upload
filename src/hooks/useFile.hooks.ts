@@ -1,25 +1,66 @@
 import { v4 as uuidv4 } from "uuid";
-import { useCreateFile } from "../queries/uploadFile.query";
+import { getFiles, useCreateFile } from "../queries/uploadFile.query";
 import { chunkFile } from "../utils/file.util";
 import { UploadFile } from "../model/uploadFile.model";
-import { useState } from "react";
 import useChunk from "./useChunk.hooks";
+import { FnCall, FnCallArgs } from "./useUploadRequestQueue.hook";
+import { useEffect } from "react";
+import { getChunks } from "../queries/chunk.query";
+import { finalizeUpload, uploadChunk } from "../api/upload.api";
 
+// const MAX_CHUNK_SIZE = 5 * 1024 * 1024 * 1024 * 1024; // 5MB chunk size
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
 
 type Props = {
   type: string;
+  enqueue: (fnCall: FnCall, args: FnCallArgs) => Promise<any>;
+  isProcessing: boolean;
 };
 
-export default function useFile({ type }: Props) {
-  const [isProcessing, setProcessing] = useState<boolean>(false);
-
+export default function useFile({ type, enqueue, isProcessing }: Props) {
   const { createFile } = useCreateFile();
-  const { onProcessChunks } = useChunk({ type });
+  const { onProcessChunks } = useChunk({ type, enqueue });
 
-  const handleProcessingState = (isProcessing: boolean) => {
-    setProcessing(isProcessing);
-  };
+  //   useEffect(() => {
+  //     async function fillQueue(isProcessing: boolean) {
+  //       if (isProcessing) {
+  //         return;
+  //       }
+
+  //       const files = await getFiles(type);
+
+  //       if (!files || files.length === 0) return;
+  //       const mapFiles: Record<string, UploadFile> = files.reduce((a, b) => {
+  //         return {
+  //           ...a,
+  //           [b.file_id]: b,
+  //         };
+  //       }, {});
+
+  //       const chunks = await getChunks(type);
+
+  //       if (!chunks || chunks.length === 0) return;
+
+  //       chunks.map(async (chunk) => {
+  //         await enqueue(uploadChunk, {
+  //           chunk,
+  //           file: mapFiles[chunk.file_id],
+  //         });
+
+  //         if (
+  //           chunk.chunk_index ===
+  //           mapFiles[chunk.file_id].number_of_chunks - 1
+  //         ) {
+  //           enqueue(finalizeUpload, {
+  //             chunk,
+  //             file: mapFiles[chunk.file_id],
+  //           });
+  //         }
+  //       });
+  //     }
+
+  //     fillQueue(isProcessing);
+  //   }, [isProcessing]);
 
   async function onProcessFile(file: File) {
     const file_id = uuidv4();
@@ -41,7 +82,7 @@ export default function useFile({ type }: Props) {
       await createFile(uploadFile);
       const file_chunks = chunkFile(file, MAX_CHUNK_SIZE);
 
-      return { file: uploadFile, chunks: file_chunks, timestamp };
+      return { file: uploadFile, chunks: file_chunks };
     }
 
     // large => split it to chunks and store it in the index DB.
@@ -54,12 +95,13 @@ export default function useFile({ type }: Props) {
     return {
       file: uploadFile,
       chunks: file_chunks,
-      timestamp,
     };
   }
 
   const onProcessFiles = async (files: File[]) =>
-    files.sort((a, b) => a.size - b.size).map((f) => onProcessFile(f));
+    await files
+      .sort((a, b) => a.size - b.size)
+      .map(async (f) => await onProcessFile(f));
 
   /**
    * Start uploading the given files.
@@ -69,24 +111,21 @@ export default function useFile({ type }: Props) {
    * will upload the file directly.
    * @param files the files to be uploaded
    */
-  async function onFileProcessing(files: File[]) {
-    handleProcessingState(true);
-
+  async function onProcessing(files: File[]) {
     if (files.length === 1) {
-      const { file, chunks, timestamp } = await onProcessFile(files[0]);
-      await onProcessChunks(file, chunks, timestamp);
+      const { file, chunks } = await onProcessFile(files[0]);
+      await onProcessChunks(file, chunks);
     } else {
-      (await onProcessFiles(files)).map(async (uploadFile) => {
-        const { file, chunks, timestamp } = await uploadFile;
-        await onProcessChunks(file, chunks, timestamp);
-      });
-    }
+      const processedFiles = await onProcessFiles(files);
 
-    handleProcessingState(false);
+      for (let i = 0; i < processedFiles.length; i++) {
+        const { file, chunks } = await processedFiles[i];
+        await onProcessChunks(file, chunks);
+      }
+    }
   }
 
   return {
-    onFileProcessing,
-    isProcessing,
+    onProcessing,
   };
 }

@@ -1,44 +1,46 @@
 import { useEffect, useRef } from "react";
-import {
-  getChunks,
-  getChunksByFileId,
-  useCreateChunk,
-  useDeleteChunk,
-} from "../queries/chunk.query";
-import { getFile, useDeleteFile } from "../queries/uploadFile.query";
-import { finalizeUpload, uploadChunk } from "../api/upload.api";
 import { Chunk } from "../model/chunk.model";
+import { UploadFile } from "../model/uploadFile.model";
+import { useDeleteChunk } from "../queries/chunk.query";
+import { useDeleteFile } from "../queries/uploadFile.query";
 
 export const MAX_REQUEST_CONNECTIONS = 6;
 
 type Props = {
-  type: string;
+  // type: string;
   isProcessing: boolean;
   autoUploadOnPageLoading: boolean;
-  autoUploadOnFileLoading: boolean;
-  onUploadEnd: () => void;
+  // autoUploadOnFileLoading: boolean;
+  // onUploadEnd: () => void;
 };
 
+export type FnCallArgs = { chunk: Chunk; file: UploadFile };
+export type FnCall = (
+  props: FnCallArgs
+) => Promise<{ chunk: Chunk; file: UploadFile }>;
+
 export default function useUploadRequestQueue({
-  type,
   isProcessing,
   autoUploadOnPageLoading,
-  onUploadEnd,
 }: Props) {
   const active_requests = useRef(0);
 
   const { deleteChunk } = useDeleteChunk();
   const { deleteFile } = useDeleteFile();
-  const { createChunk } = useCreateChunk();
 
-  const enqueue = async (chunk: Chunk) => {
-    await createChunk(chunk);
+  const queue = useRef<
+    {
+      fnCall: FnCall;
+      args?: FnCallArgs;
+    }[]
+  >([]);
 
-    // auto upload whenever the user load the docs.
-    // in case of auto upload, but need to be configured by the user.
-    // the response can be stored in the storage.
-    // autoUploadOnFileLoading = true | false
-  };
+  useEffect(() => {
+    if (isProcessing) {
+      active_requests.current = 0;
+      queue.current = [];
+    }
+  }, [isProcessing]);
 
   useEffect(() => {
     if (isProcessing) return;
@@ -48,51 +50,73 @@ export default function useUploadRequestQueue({
     // the response can be stored in the storage.
     // autoUploadOnPageLoading = true | false
     if (autoUploadOnPageLoading) {
-      dequeue();
+      dequeuePerMax();
     }
   }, [isProcessing, autoUploadOnPageLoading]);
 
-  const dequeue = async () => {
-    const chunks = await getChunks(type);
+  const enqueue = async (fnCall: FnCall, args?: FnCallArgs) => {
+    return new Promise(() => {
+      queue.current.push({ fnCall, args });
 
-    if (!chunks || chunks.length === 0) {
-      onUploadEnd();
-      return;
-    }
+      // dequeue();
+    });
+
+    // auto upload whenever the user load the docs.
+    // in case of auto upload, but need to be configured by the user.
+    // the response can be stored in the storage.
+    // autoUploadOnFileLoading = true | false
+  };
+
+  const dequeue = async (): Promise<any> => {
+    if (queue.current.length === 0) return;
 
     if (active_requests.current < MAX_REQUEST_CONNECTIONS) {
-      const { file_name, content, chunk_index, chunk_id, file_id } =
-        chunks.slice(0, 1)[0];
+      const { fnCall, args } = queue.current.shift() ?? {};
+
+      if (!fnCall || !args) return;
 
       active_requests.current += 1;
 
-      uploadChunk(file_name, content, chunk_index)
+      return await fnCall(args)
         .then(async () => {
-          await deleteChunk(chunk_id);
-          const file = await getFile(file_id);
-
-          const chunks = await getChunksByFileId(file_id);
-
-          if (chunks.length === 0) {
-            await finalizeUpload(file_name, file?.number_of_chunks ?? 1);
-            await deleteFile(file_id);
-          }
-        })
-        .catch(async (error) => {
-          // TODO: handle this better.
-          console.log("error", error);
-          await deleteChunk(chunk_id);
-          await deleteFile(file_id);
-        })
-        .finally(() => {
           active_requests.current -= 1;
-          dequeue();
+
+          const { chunk } = args;
+          deleteChunk(chunk.chunk_id);
+
+          if (fnCall.name === "finalizeUpload") {
+            deleteFile(chunk.file_id);
+          }
+
+          dequeuePerMax();
+
+          return Promise.resolve({ ...args, fnCallName: fnCall.name });
+        })
+        .catch((error) => {
+          /** TODO: handle error
+           *
+           * if it fails on level of uploadFile
+           * if it fails on level of finalizeUpload
+           *
+           */
+          return Promise.reject(error);
         });
     }
+  };
+
+  const resetQueue = () => {
+    active_requests.current = 0;
+    queue.current = [];
+  };
+
+  const dequeuePerMax = async () => {
+    for (let i = 0; i < MAX_REQUEST_CONNECTIONS; i++) dequeue();
   };
 
   return {
     enqueue,
     dequeue,
+    dequeuePerMax,
+    resetQueue,
   };
 }

@@ -17,7 +17,12 @@ export default function useUploader({ type }: Props) {
 
   const { isResumable, onResumeUploads } = useResumeUploads();
 
-  const { isUploading, handleUploadingState } = useUploadState();
+  const {
+    isUploading,
+    isProcessing,
+    handleUploadingState,
+    handleProcessingState,
+  } = useUploadState();
 
   const {
     autoUploadOnPageLoading,
@@ -25,8 +30,6 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
   } = useAutoUpload();
-
-  const { onFileProcessing, isProcessing } = useFile({ type });
 
   // resume uploads automatically.
   // this affect took place whenever the user :
@@ -47,15 +50,15 @@ export default function useUploader({ type }: Props) {
     }
   }, [indexed_files]);
 
-  const { dequeue } = useUploadRequestQueue({
-    type,
+  const { dequeuePerMax, enqueue, resetQueue } = useUploadRequestQueue({
     isProcessing,
     autoUploadOnPageLoading,
-    autoUploadOnFileLoading,
-    onUploadEnd: onReset,
   });
 
-  function onChange(e: ChangeEvent<HTMLInputElement>) {
+  const { onProcessing } = useFile({ type, enqueue, isProcessing });
+
+  async function onChange(e: ChangeEvent<HTMLInputElement>) {
+    handleProcessingState(true);
     const { files } = e.target;
 
     if (!files) {
@@ -70,19 +73,43 @@ export default function useUploader({ type }: Props) {
     e.target.value = "";
     setFiles(file_list);
 
-    onFileProcessing(file_list);
+    await onProcessing(file_list);
+    handleProcessingState(false);
   }
+
+  // useEffect(() => {
+  //   if (!files || files.length === 0) return;
+  //   if (!isProcessing) return;
+
+  //   async function onProcessing() {
+  //     if (isProcessing) {
+  //       // await new Promise(async () => {
+  //       // });
+
+  //       await onFileProcessing(files ?? []);
+
+  //       handleProcessingState(false);
+  //     }
+  //   }
+
+  //   onProcessing();
+  // }, [isProcessing, files?.length]);
 
   function onReset() {
     onResumeUploads(false);
     handleUploadingState(false);
     setFiles(null);
+    resetQueue();
   }
 
   // trigger the uploading API manually.
   async function onUpload() {
     handleUploadingState(true);
-    if (!isUploading) await dequeue();
+
+    // prevent the user from clicking if there is already a current uploading
+    if (!isUploading) {
+      dequeuePerMax();
+    }
   }
 
   return {
@@ -92,10 +119,12 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
     onReset,
+    handleProcessingState,
+    handleUploadingState,
 
     isResumable,
     isUploading,
-    isProcessing,
+    isProcessing: isProcessing && Boolean(indexed_files?.length),
     files,
     indexed_files,
     autoUploadOnPageLoading,
