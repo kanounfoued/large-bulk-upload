@@ -5,7 +5,7 @@ import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 export const MAX_REQUEST_CONNECTIONS = 6;
 
-export default function useUploadRequestQueue() {
+export default function useQueue() {
   const active_requests = useRef(0);
 
   const { deleteChunk } = useDeleteChunk();

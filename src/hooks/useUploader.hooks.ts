@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { getFiles, useGetFiles } from "../queries/uploadFile.query";
-import useUploadRequestQueue from "./useUploadRequestQueue.hook";
+import useQueue from "./useQueue.hook";
 import { getChunks } from "../queries/chunk.query";
 import useResumeUploads from "./useResumeUploads.hooks";
 import useUploadState from "./useUploadState.hooks";
@@ -15,7 +15,7 @@ export default function useUploader({ type }: Props) {
   const [files, setFiles] = useState<File[] | null>(null);
   const indexed_files = useGetFiles({ type });
 
-  const { dequeuePerMax, enqueue, resetQueue } = useUploadRequestQueue();
+  const { dequeuePerMax, enqueue, resetQueue } = useQueue();
 
   const {
     isUploading,
