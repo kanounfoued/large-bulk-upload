@@ -17,12 +17,14 @@ export default function useUploader({ type }: Props) {
 
   const { dequeuePerMax, enqueue, resetQueue } = useQueue();
 
-  const {
-    isUploading,
-    isProcessing,
-    handleUploadingState,
-    handleProcessingState,
-  } = useUploadState();
+  const { isFileProcessing, onProcessing, handleFileProcessingState } = useFile(
+    {
+      type,
+      enqueue,
+    }
+  );
+
+  const { isUploading, handleUploadingState } = useUploadState();
 
   const {
     autoUploadOnPageLoading,
@@ -30,6 +32,14 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
   } = useAutoUpload();
+
+  const { isResumable, onResumeUploads, isResumeProcessing } = useResumeUploads(
+    {
+      type,
+      isFileProcessing,
+      enqueue,
+    }
+  );
 
   // resume uploads automatically.
   // this affect took place whenever the user:
@@ -39,7 +49,7 @@ export default function useUploader({ type }: Props) {
       const files = await getFiles(type);
       const chunks = await getChunks(type);
 
-      if (isProcessing) return;
+      if (isFileProcessing) return;
       if (!files || !chunks) return;
       if (files.length === 0) return;
       if (chunks.length === 0) return;
@@ -58,7 +68,7 @@ export default function useUploader({ type }: Props) {
   }, [indexed_files]);
 
   useEffect(() => {
-    if (isProcessing) return;
+    if (isFileProcessing) return;
 
     // auto upload whenever the user load the page.
     // in case of auto upload, but need to be configured by the user.
@@ -67,23 +77,10 @@ export default function useUploader({ type }: Props) {
     if (autoUploadOnPageLoading) {
       dequeuePerMax();
     }
-  }, [isProcessing, autoUploadOnPageLoading]);
-
-  const { onProcessing } = useFile({
-    type,
-    enqueue,
-  });
-
-  const { isResumable, onResumeUploads, isResumeProcessing } = useResumeUploads(
-    {
-      type,
-      isProcessing,
-      enqueue,
-    }
-  );
+  }, [isFileProcessing, autoUploadOnPageLoading]);
 
   async function onChange(e: ChangeEvent<HTMLInputElement>) {
-    handleProcessingState(true);
+    handleFileProcessingState(true);
     const { files } = e.target;
 
     if (!files) {
@@ -99,7 +96,7 @@ export default function useUploader({ type }: Props) {
     setFiles(file_list);
 
     await onProcessing(file_list);
-    handleProcessingState(false);
+    handleFileProcessingState(false);
   }
 
   function onResume() {
@@ -131,14 +128,15 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
     onReset,
-    handleProcessingState,
+    handleFileProcessingState,
     handleUploadingState,
 
     isResumable,
     isUploading,
     isEmpty: indexed_files?.length === 0,
     isProcessing:
-      (isProcessing && Boolean(indexed_files?.length)) || isResumeProcessing,
+      (isFileProcessing && Boolean(indexed_files?.length)) ||
+      isResumeProcessing,
     files,
     indexed_files,
     autoUploadOnPageLoading,
