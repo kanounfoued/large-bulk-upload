@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { useGetFiles } from "../queries/uploadFile.query";
+import { getFiles, useGetFiles } from "../queries/uploadFile.query";
 import useUploadRequestQueue from "./useUploadRequestQueue.hook";
 import { getChunks } from "../queries/chunk.query";
 import useResumeUploads from "./useResumeUploads.hooks";
@@ -15,9 +15,12 @@ export default function useUploader({ type }: Props) {
   const [files, setFiles] = useState<File[] | null>(null);
   const indexed_files = useGetFiles({ type });
 
-  const { isResumable, onResumeUploads } = useResumeUploads();
-
-  const { isUploading, handleUploadingState } = useUploadState();
+  const {
+    isUploading,
+    isProcessing,
+    handleUploadingState,
+    handleProcessingState,
+  } = useUploadState();
 
   const {
     autoUploadOnPageLoading,
@@ -26,15 +29,20 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterFileLoading,
   } = useAutoUpload();
 
-  const { onFileProcessing, isProcessing } = useFile({ type });
-
   // resume uploads automatically.
-  // this affect took place whenever the user :
+  // this affect took place whenever the user:
   // reload the page, mount the component ...
   useEffect(() => {
     (async function () {
+      const files = await getFiles(type);
       const chunks = await getChunks(type);
-      if (chunks.length > 0) onResumeUploads(true);
+
+      if (isProcessing) return;
+      if (!files || !chunks) return;
+      if (files.length === 0) return;
+      if (chunks.length === 0) return;
+
+      onResumeUploads(true);
     })();
   }, []);
 
@@ -47,15 +55,26 @@ export default function useUploader({ type }: Props) {
     }
   }, [indexed_files]);
 
-  const { dequeue } = useUploadRequestQueue({
-    type,
+  const { dequeuePerMax, enqueue, resetQueue } = useUploadRequestQueue({
     isProcessing,
     autoUploadOnPageLoading,
-    autoUploadOnFileLoading,
-    onUploadEnd: onReset,
   });
 
-  function onChange(e: ChangeEvent<HTMLInputElement>) {
+  const { onProcessing } = useFile({
+    type,
+    enqueue,
+  });
+
+  const { isResumable, onResumeUploads, isResumeProcessing } = useResumeUploads(
+    {
+      type,
+      isProcessing,
+      enqueue,
+    }
+  );
+
+  async function onChange(e: ChangeEvent<HTMLInputElement>) {
+    handleProcessingState(true);
     const { files } = e.target;
 
     if (!files) {
@@ -70,32 +89,47 @@ export default function useUploader({ type }: Props) {
     e.target.value = "";
     setFiles(file_list);
 
-    onFileProcessing(file_list);
+    await onProcessing(file_list);
+    handleProcessingState(false);
+  }
+
+  function onResume() {
+    onResumeUploads(false);
+    onUpload();
   }
 
   function onReset() {
     onResumeUploads(false);
     handleUploadingState(false);
     setFiles(null);
+    resetQueue();
   }
 
   // trigger the uploading API manually.
   async function onUpload() {
-    handleUploadingState(true);
-    if (!isUploading) await dequeue();
+    // prevent the user from clicking if there is already a current uploading
+    if (!isUploading) {
+      handleUploadingState(true);
+      dequeuePerMax();
+    }
   }
 
   return {
     onUpload,
-    onResumeUploads: onUpload,
+    onResume,
     onChange,
+    onResumeUploads,
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
     onReset,
+    handleProcessingState,
+    handleUploadingState,
 
     isResumable,
     isUploading,
-    isProcessing,
+    isEmpty: indexed_files?.length === 0,
+    isProcessing:
+      (isProcessing && Boolean(indexed_files?.length)) || isResumeProcessing,
     files,
     indexed_files,
     autoUploadOnPageLoading,

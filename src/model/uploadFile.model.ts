@@ -13,4 +13,5 @@ export type UploadFile = {
   status: UploadFileStatus;
   timestamp: number;
   type: string;
+  progress?: number;
 };

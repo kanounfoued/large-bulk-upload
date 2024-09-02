@@ -23,9 +23,9 @@ export default function FileTab({ file }: Props) {
     setOpen((prev) => !prev);
   };
 
-  const onRemove = () => {
-    deleteFile(file.file_id);
-    deleteChunks(file.file_id);
+  const onRemove = async () => {
+    await deleteFile(file.file_id);
+    await deleteChunks(file.file_id);
   };
 
   return (
