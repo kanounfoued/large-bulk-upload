@@ -10,13 +10,13 @@ import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 type Props = {
   type: string;
-  isProcessing: boolean;
+  isFileProcessing: boolean;
   enqueue: (fnCall: QueueFn, args: QueueFnArgs) => any;
 };
 
 export default function useResumeUploads({
   type,
-  isProcessing,
+  isFileProcessing,
   enqueue,
 }: Props) {
   const [isResumable, setIsResumable] = useState<boolean>(false);
@@ -27,7 +27,7 @@ export default function useResumeUploads({
    * it loads the data from index db and put it into queue.
    */
   useEffect(() => {
-    if (isProcessing) return;
+    if (isFileProcessing) return;
     if (!isResumable) return;
 
     async function resumeProcessing() {
@@ -67,15 +67,15 @@ export default function useResumeUploads({
     }
 
     resumeProcessing();
-  }, [isProcessing, isResumable]);
+  }, [isFileProcessing, isResumable]);
 
   // TODO: integrate index db or local storage for long term usage of the user's response.
   function onResumeUploads(isQueueFull: boolean) {
     setIsResumable(isQueueFull);
   }
 
-  const handleReusmeProcessing = (isProcessing: boolean) => {
-    setIsResumeProcessing(isProcessing);
+  const handleReusmeProcessing = (isResumeProcessing: boolean) => {
+    setIsResumeProcessing(isResumeProcessing);
   };
 
   return {

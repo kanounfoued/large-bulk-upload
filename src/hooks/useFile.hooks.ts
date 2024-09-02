@@ -4,6 +4,7 @@ import { chunkFile } from "../utils/file.util";
 import { UploadFile } from "../model/uploadFile.model";
 import useChunk from "./useChunk.hooks";
 import { QueueFn, QueueFnArgs } from "../model/queue.model";
+import { useState } from "react";
 
 // const MAX_CHUNK_SIZE = 5 * 1024 * 1024 * 1024 * 1024; // 5MB chunk size
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
@@ -14,8 +15,14 @@ type Props = {
 };
 
 export default function useFile({ type, enqueue }: Props) {
+  const [isFileProcessing, setIsFileProcessing] = useState<boolean>(false);
+
   const { createFile } = useCreateFile();
   const { onProcessChunks } = useChunk({ type, enqueue });
+
+  const handleFileProcessingState = (isProcessing: boolean) => {
+    setIsFileProcessing(isProcessing);
+  };
 
   async function onProcessFile(file: File) {
     const file_id = uuidv4();
@@ -87,6 +94,8 @@ export default function useFile({ type, enqueue }: Props) {
   }
 
   return {
+    isFileProcessing,
     onProcessing,
+    handleFileProcessingState,
   };
 }

@@ -12,7 +12,7 @@ export default function Uploader() {
     onUpload,
     onChangeAutoUploadAfterPageLoading,
     onResume,
-    handleProcessingState,
+    handleFileProcessingState,
     handleUploadingState,
   } = useUploader({
     type: "dataset",
@@ -27,13 +27,13 @@ export default function Uploader() {
 
         <button
           onClick={() => {
-            handleProcessingState(true);
+            handleFileProcessingState(true);
             handleUploadingState(false);
           }}
         >
           toggle processing
         </button>
-        <button onClick={() => handleProcessingState(false)}>
+        <button onClick={() => handleFileProcessingState(false)}>
           Stop processing
         </button>
 
