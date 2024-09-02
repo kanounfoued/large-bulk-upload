@@ -7,11 +7,8 @@ import { useDeleteFile } from "../queries/uploadFile.query";
 export const MAX_REQUEST_CONNECTIONS = 6;
 
 type Props = {
-  // type: string;
   isProcessing: boolean;
   autoUploadOnPageLoading: boolean;
-  // autoUploadOnFileLoading: boolean;
-  // onUploadEnd: () => void;
 };
 
 export type FnCallArgs = { chunk: Chunk; file: UploadFile };
@@ -36,13 +33,6 @@ export default function useUploadRequestQueue({
   >([]);
 
   useEffect(() => {
-    if (isProcessing) {
-      active_requests.current = 0;
-      queue.current = [];
-    }
-  }, [isProcessing]);
-
-  useEffect(() => {
     if (isProcessing) return;
 
     // auto upload whenever the user load the page.
@@ -54,17 +44,8 @@ export default function useUploadRequestQueue({
     }
   }, [isProcessing, autoUploadOnPageLoading]);
 
-  const enqueue = async (fnCall: FnCall, args?: FnCallArgs) => {
-    return new Promise(() => {
-      queue.current.push({ fnCall, args });
-
-      // dequeue();
-    });
-
-    // auto upload whenever the user load the docs.
-    // in case of auto upload, but need to be configured by the user.
-    // the response can be stored in the storage.
-    // autoUploadOnFileLoading = true | false
+  const enqueue = (fnCall: FnCall, args?: FnCallArgs) => {
+    queue.current.push({ fnCall, args });
   };
 
   const dequeue = async (): Promise<any> => {
@@ -118,5 +99,6 @@ export default function useUploadRequestQueue({
     dequeue,
     dequeuePerMax,
     resetQueue,
+    queue: queue.current,
   };
 }

@@ -4,13 +4,14 @@ import FileTab from "./FileTab";
 export default function Uploader() {
   const {
     indexed_files,
-    onChange,
-    onUpload,
     isProcessing,
     isResumable,
     isUploading,
+    isEmpty,
+    onChange,
+    onUpload,
     onChangeAutoUploadAfterPageLoading,
-    onResumeUploads,
+    onResume,
     handleProcessingState,
     handleUploadingState,
   } = useUploader({
@@ -37,13 +38,21 @@ export default function Uploader() {
         </button>
 
         {isResumable ? (
-          <button onClick={onResumeUploads}>resume downloads</button>
+          <button
+            disabled={isUploading || isEmpty || isProcessing}
+            onClick={onResume}
+          >
+            resume uploads
+          </button>
         ) : null}
       </div>
 
       <div className="upload-component">
         <input type="file" onChange={onChange} multiple />
-        <button disabled={isUploading || isProcessing} onClick={onUpload}>
+        <button
+          disabled={isUploading || isEmpty || isProcessing}
+          onClick={onUpload}
+        >
           upload
         </button>
       </div>

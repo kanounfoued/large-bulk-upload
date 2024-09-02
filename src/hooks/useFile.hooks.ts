@@ -1,66 +1,21 @@
 import { v4 as uuidv4 } from "uuid";
-import { getFiles, useCreateFile } from "../queries/uploadFile.query";
+import { useCreateFile } from "../queries/uploadFile.query";
 import { chunkFile } from "../utils/file.util";
 import { UploadFile } from "../model/uploadFile.model";
 import useChunk from "./useChunk.hooks";
 import { FnCall, FnCallArgs } from "./useUploadRequestQueue.hook";
-import { useEffect } from "react";
-import { getChunks } from "../queries/chunk.query";
-import { finalizeUpload, uploadChunk } from "../api/upload.api";
 
 // const MAX_CHUNK_SIZE = 5 * 1024 * 1024 * 1024 * 1024; // 5MB chunk size
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
 
 type Props = {
   type: string;
-  enqueue: (fnCall: FnCall, args: FnCallArgs) => Promise<any>;
-  isProcessing: boolean;
+  enqueue: (fnCall: FnCall, args: FnCallArgs) => any;
 };
 
-export default function useFile({ type, enqueue, isProcessing }: Props) {
+export default function useFile({ type, enqueue }: Props) {
   const { createFile } = useCreateFile();
   const { onProcessChunks } = useChunk({ type, enqueue });
-
-  //   useEffect(() => {
-  //     async function fillQueue(isProcessing: boolean) {
-  //       if (isProcessing) {
-  //         return;
-  //       }
-
-  //       const files = await getFiles(type);
-
-  //       if (!files || files.length === 0) return;
-  //       const mapFiles: Record<string, UploadFile> = files.reduce((a, b) => {
-  //         return {
-  //           ...a,
-  //           [b.file_id]: b,
-  //         };
-  //       }, {});
-
-  //       const chunks = await getChunks(type);
-
-  //       if (!chunks || chunks.length === 0) return;
-
-  //       chunks.map(async (chunk) => {
-  //         await enqueue(uploadChunk, {
-  //           chunk,
-  //           file: mapFiles[chunk.file_id],
-  //         });
-
-  //         if (
-  //           chunk.chunk_index ===
-  //           mapFiles[chunk.file_id].number_of_chunks - 1
-  //         ) {
-  //           enqueue(finalizeUpload, {
-  //             chunk,
-  //             file: mapFiles[chunk.file_id],
-  //           });
-  //         }
-  //       });
-  //     }
-
-  //     fillQueue(isProcessing);
-  //   }, [isProcessing]);
 
   async function onProcessFile(file: File) {
     const file_id = uuidv4();
@@ -98,10 +53,16 @@ export default function useFile({ type, enqueue, isProcessing }: Props) {
     };
   }
 
-  const onProcessFiles = async (files: File[]) =>
-    await files
-      .sort((a, b) => a.size - b.size)
-      .map(async (f) => await onProcessFile(f));
+  const onProcessFiles = async (files: File[]) => {
+    const sortedFiles = files.sort((a, b) => a.size - b.size);
+
+    const processedFiles = [];
+    for (const sFile of sortedFiles) {
+      processedFiles.push(await onProcessFile(sFile));
+    }
+
+    return processedFiles;
+  };
 
   /**
    * Start uploading the given files.
