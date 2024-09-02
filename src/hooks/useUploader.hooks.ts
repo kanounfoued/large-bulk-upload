@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { useGetFiles } from "../queries/uploadFile.query";
+import { getFiles, useGetFiles } from "../queries/uploadFile.query";
 import useUploadRequestQueue from "./useUploadRequestQueue.hook";
 import { getChunks } from "../queries/chunk.query";
 import useResumeUploads from "./useResumeUploads.hooks";
@@ -14,8 +14,6 @@ type Props = {
 export default function useUploader({ type }: Props) {
   const [files, setFiles] = useState<File[] | null>(null);
   const indexed_files = useGetFiles({ type });
-
-  const { isResumable, onResumeUploads } = useResumeUploads();
 
   const {
     isUploading,
@@ -32,12 +30,19 @@ export default function useUploader({ type }: Props) {
   } = useAutoUpload();
 
   // resume uploads automatically.
-  // this affect took place whenever the user :
+  // this affect took place whenever the user:
   // reload the page, mount the component ...
   useEffect(() => {
     (async function () {
+      const files = await getFiles(type);
       const chunks = await getChunks(type);
-      if (chunks.length > 0) onResumeUploads(true);
+
+      if (isProcessing) return;
+      if (!files || !chunks) return;
+      if (files.length === 0) return;
+      if (chunks.length === 0) return;
+
+      onResumeUploads(true);
     })();
   }, []);
 
@@ -55,7 +60,18 @@ export default function useUploader({ type }: Props) {
     autoUploadOnPageLoading,
   });
 
-  const { onProcessing } = useFile({ type, enqueue, isProcessing });
+  const { onProcessing } = useFile({
+    type,
+    enqueue,
+  });
+
+  const { isResumable, onResumeUploads, isResumeProcessing } = useResumeUploads(
+    {
+      type,
+      isProcessing,
+      enqueue,
+    }
+  );
 
   async function onChange(e: ChangeEvent<HTMLInputElement>) {
     handleProcessingState(true);
@@ -77,23 +93,10 @@ export default function useUploader({ type }: Props) {
     handleProcessingState(false);
   }
 
-  // useEffect(() => {
-  //   if (!files || files.length === 0) return;
-  //   if (!isProcessing) return;
-
-  //   async function onProcessing() {
-  //     if (isProcessing) {
-  //       // await new Promise(async () => {
-  //       // });
-
-  //       await onFileProcessing(files ?? []);
-
-  //       handleProcessingState(false);
-  //     }
-  //   }
-
-  //   onProcessing();
-  // }, [isProcessing, files?.length]);
+  function onResume() {
+    onResumeUploads(false);
+    onUpload();
+  }
 
   function onReset() {
     onResumeUploads(false);
@@ -104,18 +107,18 @@ export default function useUploader({ type }: Props) {
 
   // trigger the uploading API manually.
   async function onUpload() {
-    handleUploadingState(true);
-
     // prevent the user from clicking if there is already a current uploading
     if (!isUploading) {
+      handleUploadingState(true);
       dequeuePerMax();
     }
   }
 
   return {
     onUpload,
-    onResumeUploads: onUpload,
+    onResume,
     onChange,
+    onResumeUploads,
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
     onReset,
@@ -124,7 +127,9 @@ export default function useUploader({ type }: Props) {
 
     isResumable,
     isUploading,
-    isProcessing: isProcessing && Boolean(indexed_files?.length),
+    isEmpty: indexed_files?.length === 0,
+    isProcessing:
+      (isProcessing && Boolean(indexed_files?.length)) || isResumeProcessing,
     files,
     indexed_files,
     autoUploadOnPageLoading,
