@@ -2,14 +2,14 @@ import { UploadFile } from "./../model/uploadFile.model";
 import { Chunk } from "../model/chunk.model";
 import { useCreateChunk } from "../queries/chunk.query";
 import { v4 as uuidv4 } from "uuid";
-import { FnCall, FnCallArgs } from "./useUploadRequestQueue.hook";
 import { finalizeUpload, uploadChunk } from "../api/upload.api";
+import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 type Props = {
   type: string;
   enqueue: (
-    fnCall: FnCall,
-    args: FnCallArgs
+    fnCall: QueueFn,
+    args: QueueFnArgs
   ) => { chunk: Chunk; file: UploadFile };
 };
 

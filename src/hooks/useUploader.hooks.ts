@@ -15,6 +15,8 @@ export default function useUploader({ type }: Props) {
   const [files, setFiles] = useState<File[] | null>(null);
   const indexed_files = useGetFiles({ type });
 
+  const { dequeuePerMax, enqueue, resetQueue } = useUploadRequestQueue();
+
   const {
     isUploading,
     isProcessing,
@@ -55,10 +57,17 @@ export default function useUploader({ type }: Props) {
     }
   }, [indexed_files]);
 
-  const { dequeuePerMax, enqueue, resetQueue } = useUploadRequestQueue({
-    isProcessing,
-    autoUploadOnPageLoading,
-  });
+  useEffect(() => {
+    if (isProcessing) return;
+
+    // auto upload whenever the user load the page.
+    // in case of auto upload, but need to be configured by the user.
+    // the response can be stored in the storage.
+    // autoUploadOnPageLoading = true | false
+    if (autoUploadOnPageLoading) {
+      dequeuePerMax();
+    }
+  }, [isProcessing, autoUploadOnPageLoading]);
 
   const { onProcessing } = useFile({
     type,

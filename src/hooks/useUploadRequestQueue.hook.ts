@@ -1,25 +1,11 @@
-import { useEffect, useRef } from "react";
-import { Chunk } from "../model/chunk.model";
-import { UploadFile } from "../model/uploadFile.model";
+import { useRef } from "react";
 import { useDeleteChunk } from "../queries/chunk.query";
 import { useDeleteFile } from "../queries/uploadFile.query";
+import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 export const MAX_REQUEST_CONNECTIONS = 6;
 
-type Props = {
-  isProcessing: boolean;
-  autoUploadOnPageLoading: boolean;
-};
-
-export type FnCallArgs = { chunk: Chunk; file: UploadFile };
-export type FnCall = (
-  props: FnCallArgs
-) => Promise<{ chunk: Chunk; file: UploadFile }>;
-
-export default function useUploadRequestQueue({
-  isProcessing,
-  autoUploadOnPageLoading,
-}: Props) {
+export default function useUploadRequestQueue() {
   const active_requests = useRef(0);
 
   const { deleteChunk } = useDeleteChunk();
@@ -27,24 +13,12 @@ export default function useUploadRequestQueue({
 
   const queue = useRef<
     {
-      fnCall: FnCall;
-      args?: FnCallArgs;
+      fnCall: QueueFn;
+      args?: QueueFnArgs;
     }[]
   >([]);
 
-  useEffect(() => {
-    if (isProcessing) return;
-
-    // auto upload whenever the user load the page.
-    // in case of auto upload, but need to be configured by the user.
-    // the response can be stored in the storage.
-    // autoUploadOnPageLoading = true | false
-    if (autoUploadOnPageLoading) {
-      dequeuePerMax();
-    }
-  }, [isProcessing, autoUploadOnPageLoading]);
-
-  const enqueue = (fnCall: FnCall, args?: FnCallArgs) => {
+  const enqueue = (fnCall: QueueFn, args?: QueueFnArgs) => {
     queue.current.push({ fnCall, args });
   };
 
