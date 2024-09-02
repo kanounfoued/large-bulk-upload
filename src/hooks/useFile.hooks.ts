@@ -3,14 +3,14 @@ import { useCreateFile } from "../queries/uploadFile.query";
 import { chunkFile } from "../utils/file.util";
 import { UploadFile } from "../model/uploadFile.model";
 import useChunk from "./useChunk.hooks";
-import { FnCall, FnCallArgs } from "./useUploadRequestQueue.hook";
+import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 // const MAX_CHUNK_SIZE = 5 * 1024 * 1024 * 1024 * 1024; // 5MB chunk size
 const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
 
 type Props = {
   type: string;
-  enqueue: (fnCall: FnCall, args: FnCallArgs) => any;
+  enqueue: (fnCall: QueueFn, args: QueueFnArgs) => any;
 };
 
 export default function useFile({ type, enqueue }: Props) {

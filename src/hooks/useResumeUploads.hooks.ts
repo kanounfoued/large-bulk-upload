@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { getFiles } from "../queries/uploadFile.query";
 import { getChunks } from "../queries/chunk.query";
-import { FnCall, FnCallArgs } from "./useUploadRequestQueue.hook";
 import { UploadFile } from "../model/uploadFile.model";
 import { finalizeUpload, uploadChunk } from "../api/upload.api";
+import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 // NOTE
 // We can make the queueing when the user clicks on resumable button and then we start the uploading process.
@@ -11,7 +11,7 @@ import { finalizeUpload, uploadChunk } from "../api/upload.api";
 type Props = {
   type: string;
   isProcessing: boolean;
-  enqueue: (fnCall: FnCall, args: FnCallArgs) => any;
+  enqueue: (fnCall: QueueFn, args: QueueFnArgs) => any;
 };
 
 export default function useResumeUploads({
