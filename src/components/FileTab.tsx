@@ -1,5 +1,5 @@
 import { UploadFile } from "../model/uploadFile.model";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useDeleteByFileId,
   useGetChunksByFileId,
@@ -12,9 +12,17 @@ type Props = {
 
 export default function FileTab({ file }: Props) {
   const [open, setOpen] = useState(false);
-  const progress = 70;
+  const [progress, setProgress] = useState(0);
 
   const chunks = useGetChunksByFileId(file.file_id);
+
+  useEffect(() => {
+    if (!chunks) return;
+
+    const diff = file.number_of_chunks - chunks?.length;
+
+    setProgress((diff / file.number_of_chunks) * 100);
+  }, [chunks?.length]);
 
   const { deleteFile } = useDeleteFile();
   const { deleteChunks } = useDeleteByFileId();
