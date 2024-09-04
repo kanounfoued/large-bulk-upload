@@ -4,6 +4,7 @@ import { useCreateChunk } from "../queries/chunk.query";
 import { v4 as uuidv4 } from "uuid";
 import { finalizeUpload, uploadChunk } from "../api/upload.api";
 import { QueueFn, QueueFnArgs } from "../model/queue.model";
+import { useUpdateFile } from "../queries/uploadFile.query";
 
 type Props = {
   type: string;
@@ -15,6 +16,7 @@ type Props = {
 
 export default function useChunk({ type, enqueue }: Props) {
   const { createChunk } = useCreateChunk();
+  const { updateFile } = useUpdateFile();
 
   const onProcessChunks = async (file: UploadFile, chunks: Blob[]) => {
     let i = 0;
@@ -35,8 +37,10 @@ export default function useChunk({ type, enqueue }: Props) {
 
       enqueue(uploadChunk, { chunk, file });
 
-      if (chunk.chunk_index === file.number_of_chunks - 1)
+      if (chunk.chunk_index === file.number_of_chunks - 1) {
+        await updateFile(file.file_id, { ...file, is_processed: true });
         enqueue(finalizeUpload, { chunk, file });
+      }
 
       i++;
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getFiles } from "../queries/uploadFile.query";
-import { getChunks } from "../queries/chunk.query";
+import { getChunks, useDeleteByFileId } from "../queries/chunk.query";
 import { UploadFile } from "../model/uploadFile.model";
 import { finalizeUpload, uploadChunk } from "../api/upload.api";
 import { QueueFn, QueueFnArgs } from "../model/queue.model";
@@ -11,6 +11,7 @@ import { QueueFn, QueueFnArgs } from "../model/queue.model";
 type Props = {
   type: string;
   isFileProcessing: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   enqueue: (fnCall: QueueFn, args: QueueFnArgs) => any;
 };
 
@@ -21,6 +22,7 @@ export default function useResumeUploads({
 }: Props) {
   const [isResumable, setIsResumable] = useState<boolean>(false);
   const [isResumeProcessing, setIsResumeProcessing] = useState<boolean>(false);
+  const { deleteChunks } = useDeleteByFileId();
 
   /**
    * this useEffect will be triggered when there are some files and chunks inside index DB while the user has already entered the page.
@@ -47,6 +49,11 @@ export default function useResumeUploads({
       }, {});
 
       for (const chunk of chunks) {
+        if (!mapFiles[chunk.file_id]) {
+          deleteChunks(chunk.file_id);
+          continue;
+        }
+
         enqueue(uploadChunk, {
           chunk,
           file: mapFiles[chunk.file_id],
