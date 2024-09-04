@@ -14,4 +14,5 @@ export type UploadFile = {
   timestamp: number;
   type: string;
   progress?: number;
+  is_processed: boolean;
 };

@@ -7,10 +7,11 @@ import { QueueFn, QueueFnArgs } from "../model/queue.model";
 import { useState } from "react";
 
 // const MAX_CHUNK_SIZE = 5 * 1024 * 1024 * 1024 * 1024; // 5MB chunk size
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
+export const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk size
 
 type Props = {
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   enqueue: (fnCall: QueueFn, args: QueueFnArgs) => any;
 };
 
@@ -36,6 +37,7 @@ export default function useFile({ type, enqueue }: Props) {
       status: "pending",
       timestamp,
       type,
+      is_processed: false,
     };
 
     // small => store it in the index DB
