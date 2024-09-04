@@ -1,11 +1,16 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { getFiles, useGetFiles } from "../queries/uploadFile.query";
+import {
+  getFiles,
+  useDeleteFile,
+  useGetFiles,
+} from "../queries/uploadFile.query";
 import useQueue from "./useQueue.hook";
 import { getChunks } from "../queries/chunk.query";
 import useResumeUploads from "./useResumeUploads.hooks";
 import useUploadState from "./useUploadState.hooks";
 import useAutoUpload from "./useAutoUpload.hooks";
 import useFile from "./useFile.hooks";
+import useFileCorrupted from "./useFileCorrupted.hooks";
 
 type Props = {
   type: string;
@@ -41,6 +46,9 @@ export default function useUploader({ type }: Props) {
     }
   );
 
+  const { isFileCorrupted } = useFileCorrupted();
+  const { deleteFile } = useDeleteFile();
+
   // resume uploads automatically.
   // this affect took place whenever the user:
   // reload the page, mount the component ...
@@ -48,6 +56,13 @@ export default function useUploader({ type }: Props) {
     (async function () {
       const files = await getFiles(type);
       const chunks = await getChunks(type);
+
+      //? try this Hack.
+      for (const file of files) {
+        const isCorrupted = await isFileCorrupted(file);
+
+        if (isCorrupted) await deleteFile(file.file_id);
+      }
 
       if (isFileProcessing) return;
       if (!files || !chunks) return;
