@@ -8,11 +8,12 @@ import { useUpdateFile } from "../queries/uploadFile.query";
 
 type Props = {
   type: string;
-  enqueue: (
-    fnCall: QueueFn,
-    args: QueueFnArgs
-  ) => { chunk: Chunk; file: UploadFile };
+  enqueue: (fnCall: QueueFn, args: QueueFnArgs) => void;
 };
+
+/**
+ * TODO: to make this version better, I can avoid storing the chunks into the db and rely only on their index to create the content that needs to be uploaded the next time.
+ */
 
 export default function useChunk({ type, enqueue }: Props) {
   const { createChunk } = useCreateChunk();
@@ -33,13 +34,12 @@ export default function useChunk({ type, enqueue }: Props) {
         type,
       };
 
+      enqueue(uploadChunk, { chunk, file });
       await createChunk(chunk);
 
-      enqueue(uploadChunk, { chunk, file });
-
       if (chunk.chunk_index === file.number_of_chunks - 1) {
-        await updateFile(file.file_id, { ...file, is_processed: true });
         enqueue(finalizeUpload, { chunk, file });
+        await updateFile(file.file_id, { ...file, is_processed: true });
       }
 
       i++;
