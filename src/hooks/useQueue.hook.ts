@@ -1,15 +1,10 @@
 import { useRef } from "react";
-import { useDeleteChunk } from "../queries/chunk.query";
-import { useDeleteFile } from "../queries/uploadFile.query";
 import { QueueFn, QueueFnArgs } from "../model/queue.model";
 
 export const MAX_REQUEST_CONNECTIONS = 6;
 
 export default function useQueue() {
   const active_requests = useRef(0);
-
-  const { deleteChunk } = useDeleteChunk();
-  const { deleteFile } = useDeleteFile();
 
   const queue = useRef<
     {
@@ -22,7 +17,7 @@ export default function useQueue() {
     queue.current.push({ fnCall, args });
   };
 
-  const dequeue = async (): Promise<any> => {
+  const dequeue = async () => {
     if (queue.current.length === 0) return;
 
     if (active_requests.current < MAX_REQUEST_CONNECTIONS) {
@@ -32,30 +27,10 @@ export default function useQueue() {
 
       active_requests.current += 1;
 
-      return await fnCall(args)
-        .then(async () => {
-          active_requests.current -= 1;
-
-          const { chunk } = args;
-          deleteChunk(chunk.chunk_id);
-
-          if (fnCall.name === "finalizeUpload") {
-            deleteFile(chunk.file_id);
-          }
-
-          dequeuePerMax();
-
-          return Promise.resolve({ ...args, fnCallName: fnCall.name });
-        })
-        .catch((error) => {
-          /** TODO: handle error
-           *
-           * if it fails on level of uploadFile
-           * if it fails on level of finalizeUpload
-           *
-           */
-          return Promise.reject(error);
-        });
+      return await fnCall(args).then(async () => {
+        active_requests.current -= 1;
+        return Promise.resolve({ ...args, fnCallName: fnCall.name });
+      });
     }
   };
 
@@ -64,14 +39,9 @@ export default function useQueue() {
     queue.current = [];
   };
 
-  const dequeuePerMax = async () => {
-    for (let i = 0; i < MAX_REQUEST_CONNECTIONS; i++) dequeue();
-  };
-
   return {
     enqueue,
     dequeue,
-    dequeuePerMax,
     resetQueue,
     queue: queue.current,
   };
