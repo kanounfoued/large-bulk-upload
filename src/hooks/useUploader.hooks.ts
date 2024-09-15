@@ -1,36 +1,31 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useLayoutEffect, useState } from "react";
+import { getFiles, useDeleteFile } from "../queries/uploadFile.query";
+import useQueue, { MAX_REQUEST_CONNECTIONS } from "./useQueue.hook";
 import {
-  getFiles,
-  useDeleteFile,
-  useGetFiles,
-} from "../queries/uploadFile.query";
-import useQueue from "./useQueue.hook";
-import { getChunks } from "../queries/chunk.query";
-import useResumeUploads from "./useResumeUploads.hooks";
+  getChunks,
+  useDeleteByFileId,
+  useDeleteChunk,
+} from "../queries/chunk.query";
+import useResume from "./useResume";
 import useUploadState from "./useUploadState.hooks";
 import useAutoUpload from "./useAutoUpload.hooks";
 import useFile from "./useFile.hooks";
 import useFileCorrupted from "./useFileCorrupted.hooks";
+import useChunk from "./useChunk.hooks";
+import { UploadFile } from "../model/uploadFile.model";
 
 type Props = {
   type: string;
 };
 
 export default function useUploader({ type }: Props) {
-  const [files, setFiles] = useState<File[] | null>(null);
-  const indexed_files = useGetFiles({ type });
-
-  const { dequeuePerMax, enqueue, resetQueue } = useQueue();
-
-  const { isFileProcessing, onProcessing, handleFileProcessingState } = useFile(
-    {
-      type,
-      enqueue,
-    }
-  );
+  const [files, setFiles] = useState<UploadFile[]>([]);
+  const { isFileCorrupted } = useFileCorrupted();
+  const { deleteChunk } = useDeleteChunk();
+  const { deleteChunks: deleteChunksByFileId } = useDeleteByFileId();
+  const { deleteFile } = useDeleteFile();
 
   const { isUploading, handleUploadingState } = useUploadState();
-
   const {
     autoUploadOnPageLoading,
     autoUploadOnFileLoading,
@@ -38,30 +33,42 @@ export default function useUploader({ type }: Props) {
     onChangeAutoUploadAfterFileLoading,
   } = useAutoUpload();
 
-  const { isResumable, onResumeUploads, isResumeProcessing } = useResumeUploads(
-    {
-      type,
-      isFileProcessing,
-      enqueue,
-    }
-  );
+  const { dequeue, enqueue, resetQueue } = useQueue();
 
-  const { isFileCorrupted } = useFileCorrupted();
-  const { deleteFile } = useDeleteFile();
+  const { isFileProcessing, onProcessing, handleFileProcessingState } = useFile(
+    { type }
+  );
+  const { onProcessChunks } = useChunk({ type, enqueue });
+
+  const {
+    isResumable,
+    isSkipResumable,
+    isResumeLoading,
+    uploadFiles,
+    handleIsResumable,
+    handleIsSkipResumable,
+    onResumeProcessing,
+  } = useResume({
+    type,
+    isFileProcessing,
+    enqueue,
+  });
 
   // resume uploads automatically.
   // this affect took place whenever the user:
   // reload the page, mount the component ...
-  useEffect(() => {
+  useLayoutEffect(() => {
     (async function () {
       const files = await getFiles(type);
       const chunks = await getChunks(type);
 
-      //? try this Hack.
       for (const file of files) {
         const isCorrupted = await isFileCorrupted(file);
 
-        if (isCorrupted) await deleteFile(file.file_id);
+        if (isCorrupted) {
+          await deleteFile(file.file_id);
+          await deleteChunksByFileId(file.file_id);
+        }
       }
 
       if (isFileProcessing) return;
@@ -69,18 +76,18 @@ export default function useUploader({ type }: Props) {
       if (files.length === 0) return;
       if (chunks.length === 0) return;
 
-      onResumeUploads(true);
+      handleIsResumable(true);
     })();
   }, []);
 
   // reset the state of the uploader automatically.
-  // this affect took place whenever whenever :
+  // this affect took place whenever :
   // the files table inside the index db is empty.
   useEffect(() => {
-    if (indexed_files?.length === 0) {
+    if (uploadFiles?.length === 0) {
       onReset();
     }
-  }, [indexed_files]);
+  }, [uploadFiles]);
 
   useEffect(() => {
     if (isFileProcessing) return;
@@ -90,10 +97,16 @@ export default function useUploader({ type }: Props) {
     // the response can be stored in the storage.
     // autoUploadOnPageLoading = true | false
     if (autoUploadOnPageLoading) {
-      dequeuePerMax();
+      dequeuePerMaxRequests();
     }
   }, [isFileProcessing, autoUploadOnPageLoading]);
 
+  /**
+   *
+   * @function onChange
+   *
+   * @returns undefined
+   */
   async function onChange(e: ChangeEvent<HTMLInputElement>) {
     handleFileProcessingState(true);
     const { files } = e.target;
@@ -103,35 +116,98 @@ export default function useUploader({ type }: Props) {
       return;
     }
 
-    const file_list: File[] = [];
+    const _files: File[] = [];
 
-    for (const file of files) file_list.push(file);
+    for (const file of files) _files.push(file);
     e.target.files = null;
     e.target.value = "";
-    setFiles(file_list);
 
-    await onProcessing(file_list);
+    const processedFiles = await onProcessing(_files);
+
+    const current = [];
+    for (const processedFile of processedFiles) {
+      const { file, chunks } = await processedFile;
+      current.push(file);
+      await onProcessChunks(file, chunks);
+    }
+
+    setFiles(current);
     handleFileProcessingState(false);
   }
 
-  function onResume() {
-    onResumeUploads(false);
+  /**
+   *
+   * @function onResume
+   *
+   * @returns undefined
+   */
+  async function onResume() {
+    handleIsResumable(false);
+    await onResumeProcessing();
     onUpload();
   }
 
+  /**
+   *
+   * @function onReset
+   *
+   * @returns undefined
+   */
   function onReset() {
-    onResumeUploads(false);
+    handleIsResumable(false);
     handleUploadingState(false);
-    setFiles(null);
+    setFiles([]);
     resetQueue();
   }
 
-  // trigger the uploading API manually.
+  /**
+   * @function onUpload
+   *
+   * @description trigger the uploading API manually.
+   *
+   * @returns undefined
+   */
   async function onUpload() {
-    // prevent the user from clicking if there is already a current uploading
     if (!isUploading) {
       handleUploadingState(true);
-      dequeuePerMax();
+      dequeuePerMaxRequests();
+    }
+  }
+
+  /**
+   * @function dequeuePerMaxRequests
+   * @returns undefined
+   */
+  async function dequeuePerMaxRequests() {
+    for (let i = 0; i < MAX_REQUEST_CONNECTIONS; i++) {
+      dequeue()
+        .then((res) => {
+          if (!res) return;
+
+          const { chunk, fnCallName, ...args } = res;
+
+          deleteChunk(chunk.chunk_id);
+
+          if (fnCallName === "finalizeUpload") {
+            deleteFile(chunk.file_id);
+            setFiles((prevFiles) =>
+              prevFiles.filter((file) => file.file_id !== chunk.file_id)
+            );
+          }
+
+          dequeuePerMaxRequests();
+
+          return Promise.resolve({ ...args, fnCallName });
+        })
+        .catch((error) => {
+          /** TODO: handle error
+           *
+           * if it fails on level of uploadFile
+           * if it fails on level of finalizeUpload
+           *
+           */
+          return Promise.reject(error);
+        });
     }
   }
 
@@ -139,7 +215,8 @@ export default function useUploader({ type }: Props) {
     onUpload,
     onResume,
     onChange,
-    onResumeUploads,
+    handleIsResumable,
+    handleIsSkipResumable,
     onChangeAutoUploadAfterPageLoading,
     onChangeAutoUploadAfterFileLoading,
     onReset,
@@ -147,13 +224,12 @@ export default function useUploader({ type }: Props) {
     handleUploadingState,
 
     isResumable,
+    isSkipResumable,
     isUploading,
-    isEmpty: indexed_files?.length === 0,
     isProcessing:
-      (isFileProcessing && Boolean(indexed_files?.length)) ||
-      isResumeProcessing,
+      (isFileProcessing && Boolean(uploadFiles?.length)) || isResumeLoading,
     files,
-    indexed_files,
+    uploadFiles,
     autoUploadOnPageLoading,
     autoUploadOnFileLoading,
   };

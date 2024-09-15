@@ -3,29 +3,36 @@ import FileTab from "./FileTab";
 
 export default function Uploader() {
   const {
-    indexed_files,
+    uploadFiles,
+    files,
     isProcessing,
     isResumable,
     isUploading,
-    isEmpty,
+    isSkipResumable,
     onChange,
     onUpload,
-    onChangeAutoUploadAfterPageLoading,
     onResume,
-    handleFileProcessingState,
-    handleUploadingState,
+    handleIsSkipResumable,
+    // onChangeAutoUploadAfterPageLoading,
+    // handleFileProcessingState,
+    // handleUploadingState,
   } = useUploader({
     type: "dataset",
   });
 
+  const isUploadDisabled = isUploading || !files?.length || isProcessing;
+
+  const isResumeDisabled =
+    isUploading || uploadFiles?.length === 0 || isProcessing;
+
   return (
     <div>
       <div className="button-section">
-        <button onClick={onChangeAutoUploadAfterPageLoading}>
+        {/* <button onClick={onChangeAutoUploadAfterPageLoading}>
           auto save onLoad
-        </button>
+        </button> */}
 
-        <button
+        {/* <button
           onClick={() => {
             handleFileProcessingState(true);
             handleUploadingState(false);
@@ -35,28 +42,25 @@ export default function Uploader() {
         </button>
         <button onClick={() => handleFileProcessingState(false)}>
           Stop processing
-        </button>
+        </button> */}
 
-        {isResumable ? (
-          <button
-            disabled={isUploading || isEmpty || isProcessing}
-            onClick={onResume}
-          >
-            resume uploads
-          </button>
+        {!isSkipResumable && isResumable ? (
+          <>
+            <button disabled={isResumeDisabled} onClick={onResume}>
+              resume uploads
+            </button>
+            <button onClick={() => handleIsSkipResumable(true)}>
+              Skip resuming files
+            </button>
+          </>
         ) : null}
       </div>
-
       <div className="upload-component">
         <input type="file" onChange={onChange} multiple />
-        <button
-          disabled={isUploading || isEmpty || isProcessing}
-          onClick={onUpload}
-        >
+        <button disabled={isUploadDisabled} onClick={onUpload}>
           upload
         </button>
       </div>
-
       {isProcessing ? (
         <>
           <h3>Processing ....</h3>
@@ -64,14 +68,26 @@ export default function Uploader() {
         </>
       ) : null}
 
-      {isProcessing || indexed_files?.length === 0 ? (
+      {isProcessing || uploadFiles?.length === 0 ? (
         <div>No file or chunk found to upload </div>
       ) : (
-        <div className="files-list">
-          {indexed_files?.map((file) => (
-            <FileTab key={file.file_id} file={file} />
-          ))}
-        </div>
+        <>
+          <p>Current Uploads</p>
+          <div className="files-list">
+            {files?.map((file) => (
+              <FileTab key={file?.file_id} file={file} />
+            ))}
+          </div>
+
+          <p>Resumable Uploads</p>
+          {!isSkipResumable || isResumable ? (
+            <div className="files-list">
+              {uploadFiles?.map((file) => (
+                <FileTab key={file.file_id} file={file} />
+              ))}
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
